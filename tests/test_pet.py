@@ -1,6 +1,7 @@
 import allure
 import requests
 import jsonschema
+import pytest
 from .schemas.pet_schema import PET_SCHEMA
 
 BASE_URL = 'https://petstore.swagger.rv-school.ru/api/v3'
@@ -160,3 +161,33 @@ class TestPet:
         with allure.step("Проверка, что питомец действительно удален"):
             response = requests.get(url=f"{BASE_URL}/pet/{pet_id}")
             assert response.status_code == 404, "Питомец не был удален!"
+
+
+
+    @allure.title("Получение питомца по статусу")
+    @pytest.mark.parametrize(
+        "status, expected_status_code",
+        [
+            ("sold", 200),
+            ("borrowed", 400),
+            ("", 400)
+        ],
+    )
+    def test_get_pet_by_status(self, status, expected_status_code):
+        with allure.step(f"Отправка запроса на получение питомца по статусу '{status}'"):
+            response = requests.get(url=f"{BASE_URL}/pet/findByStatus", params={"status": status})
+
+        with allure.step("Проверка статуса ответа и формата данных"):
+            # 1. Проверяем сам статус код
+            assert response.status_code == expected_status_code, \
+                f"Ожидался статус {expected_status_code}, получен {response.status_code}. Текст ошибки: {response.text}"
+
+            # 2. Проверяем формат тела ответа
+            if expected_status_code == 200:
+                # При успешном ответе API возвращает список питомцев
+                assert isinstance(response.json(), list), "При статусе 200 тело ответа должно быть списком"
+            else:
+                # При ошибке (400) API возвращает словарь с описанием ошибки
+                assert isinstance(response.json(), dict), "При статусе 400 тело ответа должно быть словарем (описание ошибки)"
+
+
