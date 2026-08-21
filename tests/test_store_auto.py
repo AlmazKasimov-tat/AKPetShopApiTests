@@ -9,45 +9,35 @@ from .schemas.store_shema import STORE_SCHEMA, INVENTORY_SCHEMA
 BASE_URL = 'https://petstore.swagger.rv-school.ru/api/v3'
 
 
-
-@pytest.fixture(scope="function")
-def existing_order():
-    create_payload = {
-        "petId": 12345,
-        "quantity": 1,
-        "shipDate": "2026-08-21T12:00:00.000Z",
-        "status": "placed",
-        "complete": False
-    }
-
-    create_response = requests.post(f"{BASE_URL}/store/order", json=create_payload)
-    assert create_response.status_code == 200, f"Не удалось создать заказ для теста. Ответ: {create_response.text}"
-
-    order_data = create_response.json()
-
-    yield order_data
-
-    requests.delete(f"{BASE_URL}/store/order/{order_data['id']}")
-
-
-
 @allure.feature("Store")
 class TestStoreAuto:
 
     @allure.title('Попытка разместить заказ')
     def test_order_placement(self):
+
+        payload = {
+            "id": 1,
+            "petId": 1,
+            "quantity": 1,
+            "status": "placed",
+            "complete": True
+        }
+
         with allure.step("Отправка запроса на размещение заказа"):
-            payload = {
-                "quantity": 1,
-                "status": "placed",
-                "complete": True
-            }
             response = requests.post(url=f"{BASE_URL}/store/order", json=payload)
             response_json = response.json()
 
-        with allure.step("Проверка статуса кода ответа и схемы"):
+        with allure.step("Проверка статуса кода ответа"):
             assert response.status_code == 200, f"Код ответа не совпал с ожидаемым. Текст: {response.text}"
+
+        with allure.step("Проверка формата ответа по JSON Schema"):
             jsonschema.validate(response_json, STORE_SCHEMA)
+        with allure.step("Проверка, что в ответе вернулись корректные данные"):
+            assert response_json["id"] == payload["id"], "ID заказа не совпадает с отправленным"
+            assert response_json["petId"] == payload["petId"], "petId не совпадает с отправленным"
+            assert response_json["quantity"] == payload["quantity"], "quantity не совпадает с отправленным"
+            assert response_json["status"] == payload["status"], "status не совпадает с отправленным"
+            assert response_json["complete"] == payload["complete"], "complete не совпадает с отправленным"
 
     @allure.title("Попытка получить информацию о заказе по ID")
     def test_get_order_info_by_id(self, existing_order):
